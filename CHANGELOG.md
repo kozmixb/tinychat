@@ -29,4 +29,5 @@
 - Reordered the README around description, server deployment, and environment variables.
 - Simplified README hosting instructions into Native, Docker, and Docker Compose options.
 - Removed the separate private/self-signed CA example from the README hosting section.
+- Added a release workflow for Linux, macOS, and Windows binaries, plus native hosting docs with a Linux systemd service.
 - Improved composer and message UI, including bottom alignment, message copy actions, model label with token context, and scroll behavior for long histories.

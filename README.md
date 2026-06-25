@@ -10,13 +10,72 @@ TinyChat was inspired by the built-in web UI from [`llama.cpp`](https://github.c
 
 ### Native
 
-Run the binary directly and configure the OpenAI-compatible endpoint through the host environment:
+Download the binary for your platform from the latest GitHub Release.
+
+#### Linux
 
 ```sh
-OPENAI_CHAT_HOST=https://api.example.com/v1 APP_HOST=0.0.0.0 APP_PORT=8080 tinychat
+curl -L -o tinychat-linux-amd64.tar.gz https://github.com/kozmixb/tinychat/releases/latest/download/tinychat-linux-amd64.tar.gz
+tar -xzf tinychat-linux-amd64.tar.gz
+sudo install -m 0755 tinychat /usr/local/bin/tinychat
 ```
 
-Open `http://your-server:8080`.
+Use `tinychat-linux-arm64.tar.gz` for ARM64 Linux hosts.
+
+Create `/etc/systemd/system/tinychat.service`:
+
+```ini
+[Unit]
+Description=TinyChat
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=APP_HOST=0.0.0.0
+Environment=APP_PORT=8080
+Environment=OPENAI_CHAT_HOST=https://api.example.com/v1
+ExecStart=/usr/local/bin/tinychat
+Restart=on-failure
+RestartSec=5
+User=tinychat
+Group=tinychat
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Create the service user and start TinyChat:
+
+```sh
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin tinychat
+sudo systemctl daemon-reload
+sudo systemctl enable --now tinychat
+```
+
+#### macOS
+
+```sh
+curl -L -o tinychat-darwin-arm64.tar.gz https://github.com/kozmixb/tinychat/releases/latest/download/tinychat-darwin-arm64.tar.gz
+tar -xzf tinychat-darwin-arm64.tar.gz
+chmod +x tinychat
+OPENAI_CHAT_HOST=https://api.example.com/v1 APP_HOST=0.0.0.0 APP_PORT=8080 ./tinychat
+```
+
+Use `tinychat-darwin-amd64.tar.gz` for Intel Macs.
+
+#### Windows
+
+```powershell
+Invoke-WebRequest -Uri "https://github.com/kozmixb/tinychat/releases/latest/download/tinychat-windows-amd64.zip" -OutFile "tinychat-windows-amd64.zip"
+Expand-Archive .\tinychat-windows-amd64.zip -DestinationPath .\tinychat
+$env:OPENAI_CHAT_HOST="https://api.example.com/v1"
+$env:APP_HOST="0.0.0.0"
+$env:APP_PORT="8080"
+.\tinychat\tinychat.exe
+```
+
+Open `http://your-server:8080` after starting TinyChat.
 
 ### Docker
 
