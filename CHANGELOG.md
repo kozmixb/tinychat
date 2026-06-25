@@ -16,4 +16,11 @@
 - Added a Docker release workflow that publishes TinyChat images to GHCR on GitHub Release publication.
 - Added README attribution to the `llama.cpp` project that inspired TinyChat.
 - Hardened the Docker runtime and proxy by removing baked-in env defaults, running as an unprivileged user, adding browser security headers, and filtering unsafe upstream response headers.
+- Updated response stats to show icon-led processing speed, generation speed, total tokens, and total time.
+- Updated live thinking so it sticks above the response while active and automatically collapses when generation begins.
+- Moved the thinking toggle above generated answers and hid assistant copy actions until generation completes.
+- Changed assistant copy to a visible footer icon that appears with response stats.
+- Updated the model label to show context size and collapse file-path model IDs to filenames.
+- Added auto-growing prompt input capped at half the viewport height.
+- Centered the welcome state and composer on the empty start screen, then animated the composer to the bottom after the first prompt.
 - Improved composer and message UI, including bottom alignment, message copy actions, model label with token context, and scroll behavior for long histories.

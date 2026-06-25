@@ -81,6 +81,21 @@
       height: 100vh;
       padding: 24px;
     }
+    .app.empty-chat {
+      grid-template-rows: auto auto;
+      align-content: center;
+      gap: 20px;
+    }
+    .app.empty-chat .stage {
+      overflow: visible;
+      padding: 0;
+    }
+    .app.empty-chat .messages {
+      padding: 0;
+    }
+    .app.empty-chat .empty {
+      min-height: auto;
+    }
     h1 {
       font-size: 30px;
       line-height: 1.15;
@@ -128,18 +143,12 @@
     .msg-actions {
       display: inline-flex;
       gap: 4px;
-      opacity: 0;
-      transition: opacity .15s ease;
-    }
-    .msg:hover .msg-actions,
-    .msg:focus-within .msg-actions {
-      opacity: 1;
     }
     .msg-action {
-      width: auto;
+      width: 22px;
       height: 22px;
       border-radius: 6px;
-      padding: 0 7px;
+      padding: 0;
       background: transparent;
       color: var(--muted);
       font-size: 11px;
@@ -163,6 +172,32 @@
       border-left: 2px solid var(--soft-line);
       padding-left: 10px;
     }
+    .thinking-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: grid;
+      gap: 6px;
+      padding: 5px 0 8px;
+      background: var(--bg);
+    }
+    .thinking-toggle {
+      justify-self: start;
+      width: auto;
+      height: 24px;
+      border-radius: 6px;
+      padding: 0 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .thinking-toggle span {
+      margin-left: 5px;
+    }
+    .thinking-toggle:hover {
+      background: #303030;
+      color: var(--text);
+    }
     .thinking-label {
       display: inline-flex;
       align-items: center;
@@ -180,8 +215,27 @@
       fill: none;
     }
     .stats {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
       color: var(--muted);
       font-size: 11px;
+    }
+    .stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+    }
+    .stat svg {
+      width: 13px;
+      height: 13px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
     }
     .bubble {
       white-space: pre-wrap;
@@ -285,6 +339,10 @@
       border-radius: var(--radius);
       min-height: 112px;
       padding: 12px;
+    }
+    .composer-shell {
+      width: 100%;
+      will-change: transform;
     }
     .setup {
       width: min(768px, calc(100vw - 48px));
@@ -403,7 +461,7 @@
     #prompt {
       width: 100%;
       min-height: 42px;
-      max-height: 160px;
+      max-height: 50vh;
       resize: none;
       border: 0;
       outline: 0;
@@ -411,6 +469,7 @@
       padding: 4px 8px;
       color: var(--text);
       font-size: 14px;
+      overflow-y: hidden;
     }
     #prompt::placeholder { color: #a7a7a7; }
     .composer-actions {
@@ -501,12 +560,12 @@
       </form>
     </div>
   </div>
-  <div class="app">
+  <div class="app empty-chat" id="app">
     <section class="stage" id="chat">
       <div class="messages" id="messages"></div>
     </section>
 
-    <div>
+    <div class="composer-shell" id="composerShell">
       <form class="composer" id="form">
         <div class="composer-inner">
           <textarea id="prompt" placeholder="Type a message..."></textarea>
@@ -531,6 +590,8 @@
 
   <script>
     const els = {
+      app: document.querySelector('#app'),
+      composerShell: document.querySelector('#composerShell'),
       endpoint: document.querySelector('#endpoint'),
       hostModal: document.querySelector('#hostModal'),
       hostForm: document.querySelector('#hostForm'),
@@ -559,6 +620,28 @@
     const runtimeEndpointCookieMaxAge = 60 * 60;
 
     function setError(text) { els.error.textContent = text || ''; }
+    function activateChatLayout() {
+      if (!els.app.classList.contains('empty-chat')) return;
+      const before = els.composerShell.getBoundingClientRect();
+      els.app.classList.remove('empty-chat');
+      const after = els.composerShell.getBoundingClientRect();
+      const deltaY = before.top - after.top;
+      els.composerShell.style.transform = 'translateY(' + deltaY + 'px)';
+      els.composerShell.getBoundingClientRect();
+      els.composerShell.style.transition = 'transform 320ms ease';
+      els.composerShell.style.transform = 'translateY(0)';
+      window.setTimeout(() => {
+        els.composerShell.style.transition = '';
+        els.composerShell.style.transform = '';
+      }, 340);
+    }
+    function resizePrompt() {
+      const maxHeight = Math.floor(window.innerHeight * 0.5);
+      els.prompt.style.height = 'auto';
+      const nextHeight = Math.min(els.prompt.scrollHeight, maxHeight);
+      els.prompt.style.height = nextHeight + 'px';
+      els.prompt.style.overflowY = els.prompt.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    }
     function nearBottom() {
       return els.chat.scrollHeight - els.chat.scrollTop - els.chat.clientHeight < 80;
     }
@@ -601,8 +684,11 @@
       els.model.title = els.model.textContent;
     }
     function modelLabel(model) {
-      const tokens = model.maxTokens ? ' - ' + numberFormat.format(model.maxTokens) + ' tokens' : '';
-      return model.id + tokens;
+      const context = model.maxTokens ? ' - Context ' + numberFormat.format(model.maxTokens) : '';
+      return modelDisplayName(model.id) + context;
+    }
+    function modelDisplayName(id) {
+      return String(id).split(/[\\/]/).filter(Boolean).pop() || id;
     }
     function modelList(data) {
       if (Array.isArray(data)) {
@@ -641,46 +727,58 @@
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
         bubble.innerHTML = renderMarkdown(msg.content || msg.status || '');
-        row.append(bubble);
-        if (msg.reasoning && (showThinkingByMessage[index] || !msg.done)) {
-          const thinkingLabel = document.createElement('div');
-          thinkingLabel.className = 'thinking-label';
-          thinkingLabel.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><path d="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"></path></svg><span>Thinking</span>';
-          const thinking = document.createElement('div');
-          thinking.className = 'thinking';
-          thinking.textContent = msg.reasoning;
-          row.append(thinkingLabel, thinking);
+        const showThinkingToggle = msg.reasoning && !msg.thinkingActive && msg.content;
+        const showThinkingPanel = msg.reasoning && (msg.thinkingActive || showThinkingByMessage[index]);
+        if (showThinkingToggle || showThinkingPanel) {
+          const thinkingWrap = document.createElement('div');
+          thinkingWrap.className = 'thinking-wrap';
+          if (showThinkingToggle) {
+            const thinkingToggle = document.createElement('button');
+            thinkingToggle.className = 'thinking-toggle';
+            thinkingToggle.type = 'button';
+            thinkingToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><path d="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"></path></svg><span>' + (showThinkingByMessage[index] ? 'Hide thinking' : 'Thinking') + '</span>';
+            thinkingToggle.title = 'Toggle thinking';
+            thinkingToggle.addEventListener('click', () => {
+              showThinkingByMessage[index] = !showThinkingByMessage[index];
+              render();
+            });
+            thinkingWrap.append(thinkingToggle);
+          } else {
+            const thinkingLabel = document.createElement('div');
+            thinkingLabel.className = 'thinking-label';
+            thinkingLabel.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><path d="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"></path></svg><span>Thinking</span>';
+            thinkingWrap.append(thinkingLabel);
+          }
+          if (showThinkingPanel) {
+            const thinking = document.createElement('div');
+            thinking.className = 'thinking';
+            thinking.textContent = msg.reasoning;
+            thinkingWrap.append(thinking);
+          }
+          row.append(thinkingWrap);
         }
+        row.append(bubble);
         const footer = document.createElement('div');
         footer.className = 'msg-footer';
         if (msg.stats) {
           const stats = document.createElement('div');
           stats.className = 'stats';
-          stats.textContent = msg.stats;
+          renderStats(stats, msg.stats);
           footer.append(stats);
         }
         const actions = document.createElement('div');
         actions.className = 'msg-actions';
-        const copy = document.createElement('button');
-        copy.className = 'msg-action';
-        copy.type = 'button';
-        copy.textContent = 'Copy';
-        copy.title = 'Copy message';
-        copy.addEventListener('click', () => copyMessage(msg, copy));
-        actions.append(copy);
-        if (msg.reasoning && msg.done) {
-          const thinking = document.createElement('button');
-          thinking.className = 'msg-action';
-          thinking.type = 'button';
-          thinking.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><path d="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"></path></svg><span>' + (showThinkingByMessage[index] ? 'Hide thinking' : 'Thinking') + '</span>';
-          thinking.title = 'Toggle thinking';
-          thinking.addEventListener('click', () => {
-            showThinkingByMessage[index] = !showThinkingByMessage[index];
-            render();
-          });
-          actions.append(thinking);
+        if (msg.role === 'assistant' && msg.stats) {
+          const copy = document.createElement('button');
+          copy.className = 'msg-action';
+          copy.type = 'button';
+          copy.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h10v12H8z"></path><path d="M6 16H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg>';
+          copy.title = 'Copy message';
+          copy.setAttribute('aria-label', 'Copy message');
+          copy.addEventListener('click', () => copyMessage(msg, copy));
+          actions.append(copy);
         }
-        footer.append(actions);
+        if (actions.children.length) footer.append(actions);
         row.append(footer);
         els.messages.append(row);
       }
@@ -707,8 +805,9 @@
       if (!text) return;
       try {
         await navigator.clipboard.writeText(text);
-        button.textContent = 'Copied';
-        window.setTimeout(() => { button.textContent = 'Copy'; }, 900);
+        const original = button.innerHTML;
+        button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>';
+        window.setTimeout(() => { button.innerHTML = original; }, 900);
       } catch {
         setError('Copy failed.');
       }
@@ -782,8 +881,9 @@
         return;
       }
 
+      activateChatLayout();
       messages.push({ role: 'user', content: text });
-      messages.push({ role: 'assistant', content: '', reasoning: '', done: false });
+      messages.push({ role: 'assistant', content: '', reasoning: '', thinkingActive: false, done: false });
       forceNextScroll = true;
       render();
 
@@ -826,6 +926,7 @@
             if (!data) continue;
             if (data === '[DONE]') {
               messages[messages.length - 1].done = true;
+              messages[messages.length - 1].thinkingActive = false;
               messages[messages.length - 1].status = '';
               scheduleRender();
               continue;
@@ -837,12 +938,14 @@
             const timings = chunk.timings;
             if (reasoning) {
               messages[messages.length - 1].reasoning += reasoning;
+              messages[messages.length - 1].thinkingActive = true;
               if (!messages[messages.length - 1].content) {
                 messages[messages.length - 1].status = 'Thinking...';
               }
               scheduleRender();
             }
             if (delta) {
+              messages[messages.length - 1].thinkingActive = false;
               messages[messages.length - 1].content += delta;
               messages[messages.length - 1].status = '';
               scheduleRender();
@@ -853,6 +956,7 @@
             }
             if (finishReason) {
               messages[messages.length - 1].done = true;
+              messages[messages.length - 1].thinkingActive = false;
               messages[messages.length - 1].status = '';
               scheduleRender();
             }
@@ -876,12 +980,37 @@
       const generatedTokens = Number(timings.predicted_n || 0);
       const promptSpeed = Number(timings.prompt_per_second || 0);
       const generatedSpeed = Number(timings.predicted_per_second || 0);
-      const prompt = promptTokens ? 'Prompt ' + numberFormat.format(promptTokens) + ' tokens' + speedLabel(promptSpeed) : '';
-      const generated = generatedTokens ? 'Generated ' + numberFormat.format(generatedTokens) + ' tokens' + speedLabel(generatedSpeed) : '';
-      return [prompt, generated].filter(Boolean).join(' - ');
+      const promptMs = Number(timings.prompt_ms || 0);
+      const generatedMs = Number(timings.predicted_ms || 0);
+      const totalMs = Number(timings.total_ms || 0) || promptMs + generatedMs;
+      return [
+        promptSpeed > 0 ? { icon: 'processing', label: 'Processing speed', value: promptSpeed.toFixed(1) + ' t/s' } : null,
+        generatedSpeed > 0 ? { icon: 'generation', label: 'Generation speed', value: generatedSpeed.toFixed(1) + ' t/s' } : null,
+        promptTokens + generatedTokens > 0 ? { icon: 'tokens', label: 'Total tokens', value: numberFormat.format(promptTokens + generatedTokens) + ' tokens' } : null,
+        totalMs > 0 ? { icon: 'time', label: 'Total time', value: timeLabel(totalMs) } : null
+      ].filter(Boolean);
     }
-    function speedLabel(value) {
-      return value > 0 ? ' @ ' + value.toFixed(1) + ' tok/s' : '';
+    function renderStats(container, stats) {
+      for (const stat of stats) {
+        const item = document.createElement('span');
+        item.className = 'stat';
+        item.title = stat.label;
+        item.innerHTML = statIcon(stat.icon);
+        const value = document.createElement('span');
+        value.textContent = stat.value;
+        item.append(value);
+        container.append(item);
+      }
+    }
+    function statIcon(icon) {
+      if (icon === 'processing') return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h3"></path><path d="M17 12h3"></path><path d="M12 4v3"></path><path d="M12 17v3"></path><path d="m6.3 6.3 2.1 2.1"></path><path d="m15.6 15.6 2.1 2.1"></path><path d="m17.7 6.3-2.1 2.1"></path><path d="m8.4 15.6-2.1 2.1"></path></svg>';
+      if (icon === 'generation') return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path></svg>';
+      if (icon === 'tokens') return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 6 21"></path><path d="M18 3l-2 18"></path><path d="M4 9h17"></path><path d="M3 15h17"></path></svg>';
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2"></path><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>';
+    }
+    function timeLabel(ms) {
+      if (ms < 1000) return Math.round(ms) + ' ms';
+      return (ms / 1000).toFixed(ms < 10000 ? 1 : 0) + 's';
     }
     function renderMarkdown(text) {
       if (!text) return '';
@@ -956,8 +1085,10 @@
       const text = els.prompt.value.trim();
       if (!text) return;
       els.prompt.value = '';
+      resizePrompt();
       sendMessage(text);
     });
+    els.prompt.addEventListener('input', resizePrompt);
     els.prompt.addEventListener('keydown', event => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -1001,17 +1132,21 @@
         }
       }
       els.prompt.value = [els.prompt.value.trim(), ...chunks].filter(Boolean).join('\n\n');
+      resizePrompt();
       els.file.value = '';
       els.prompt.focus();
     });
+    window.addEventListener('resize', resizePrompt);
 
     (async function init() {
       try {
         await loadConfig();
         await loadModels();
+        resizePrompt();
         render();
       } catch (err) {
         setError(String(err.message || err));
+        resizePrompt();
         render();
       }
     })();
