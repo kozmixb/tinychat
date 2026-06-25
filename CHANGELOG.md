@@ -7,7 +7,7 @@
 - Added Docker Compose as the primary local development workflow.
 - Switched the runtime image to Alpine with standard public CA certificates.
 - Removed the bundled Ollama service; AI endpoints are external/user-provided.
-- Added runtime OpenAI-compatible endpoint modal, one-hour browser cookie persistence, and session-only warning copy.
+- Added runtime OpenAI-compatible endpoint modal, one-hour browser local storage persistence, and testing-only warning copy.
 - Added `/api/health`, `/api/models`, and `/api/chat` proxying with outbound debug logs.
 - Added streaming chat rendering, live thinking display, optional thinking toggle, token/timing stats, and stream flushing.
 - Added Markdown rendering for headings, lists, rules, blockquotes, inline code, fenced code blocks, and code copy buttons.
@@ -25,4 +25,8 @@
 - Centered the welcome state and composer on the empty start screen, then animated the composer to the bottom after the first prompt.
 - Refreshed the UI theme with a modern dark teal palette, warmer accents, and clearer focus states.
 - Added the UI screenshot to the README.
+- Restored temporary browser-provided endpoints for local testing and documented `OPENAI_CHAT_HOST` as the production/shared deployment path.
+- Reordered the README around description, server deployment, and environment variables.
+- Simplified README hosting instructions into Native, Docker, and Docker Compose options.
+- Removed the separate private/self-signed CA example from the README hosting section.
 - Improved composer and message UI, including bottom alignment, message copy actions, model label with token context, and scroll behavior for long histories.

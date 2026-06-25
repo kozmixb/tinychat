@@ -3,6 +3,7 @@
 - Use Docker Compose for local development and verification. Do not use `go run` as the default local workflow.
 - Keep Docker image defaults minimal. Put sample runtime values in `compose.yml`, not baked into the Dockerfile.
 - Do not start, add, or depend on a local Ollama service in Compose. The AI endpoint is external and provided by the user or client.
+- Browser-provided AI endpoints are allowed only for local testing. Production/shared deployments should use `OPENAI_CHAT_HOST` from the host/container environment.
 - Use an Alpine runtime image with standard public CA certificates. Users can mount an augmented CA bundle for private or self-signed CAs.
 - Keep model reasoning/thinking hidden by default in the UI, but available through an explicit per-message toggle when the endpoint streams it.
 - After code or configuration changes, rebuild and restart the app with Docker Compose so the running container reflects the latest files.

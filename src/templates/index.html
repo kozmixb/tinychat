@@ -582,13 +582,13 @@
       </div>
       <p>
         <span>No OpenAI-compatible endpoint was provided.</span>
-        <span>You can set one for this browser session.</span>
+        <span>You can set one for this local testing session.</span>
         <span>For production or shared deployments, configure <code>OPENAI_CHAT_HOST</code> on the host server.</span>
       </p>
       <form id="hostForm">
         <input id="runtimeEndpoint" placeholder="https://api.example.com/v1" autocomplete="url" inputmode="url">
         <div class="modal-actions">
-          <button class="temporary wide" type="submit">Use temporarily</button>
+          <button class="temporary wide" type="submit">Use for testing</button>
         </div>
       </form>
     </div>
@@ -649,8 +649,8 @@
     let forceNextScroll = false;
     let showThinkingByMessage = {};
     const numberFormat = new Intl.NumberFormat();
-    const runtimeEndpointCookie = 'tinychat_runtime_endpoint';
-    const runtimeEndpointCookieMaxAge = 60 * 60;
+    const runtimeEndpointStorageKey = 'tinychat_runtime_endpoint';
+    const runtimeEndpointStorageTtlMs = 60 * 60 * 1000;
 
     function setError(text) { els.error.textContent = text || ''; }
     function activateChatLayout() {
@@ -681,17 +681,24 @@
     function scrollBottom() { els.chat.scrollTop = els.chat.scrollHeight; }
     function activeEndpoint() { return configuredEndpoint || runtimeEndpoint; }
     function displayEndpoint(endpoint) { return endpoint.replace(/\/$/, ''); }
-    function readCookie(name) {
-      const prefix = name + '=';
-      return document.cookie
-        .split(';')
-        .map(cookie => cookie.trim())
-        .find(cookie => cookie.startsWith(prefix))
-        ?.slice(prefix.length) || '';
+    function readRuntimeEndpoint() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(runtimeEndpointStorageKey) || 'null');
+        if (!stored?.endpoint || Number(stored.expiresAt) <= Date.now()) {
+          localStorage.removeItem(runtimeEndpointStorageKey);
+          return '';
+        }
+        return stored.endpoint;
+      } catch {
+        localStorage.removeItem(runtimeEndpointStorageKey);
+        return '';
+      }
     }
     function saveRuntimeEndpoint(endpoint) {
-      const value = encodeURIComponent(endpoint);
-      document.cookie = runtimeEndpointCookie + '=' + value + '; Max-Age=' + runtimeEndpointCookieMaxAge + '; Path=/; SameSite=Lax';
+      localStorage.setItem(runtimeEndpointStorageKey, JSON.stringify({
+        endpoint,
+        expiresAt: Date.now() + runtimeEndpointStorageTtlMs
+      }));
     }
     function showHostModal() {
       els.hostModal.classList.add('visible');
@@ -863,13 +870,13 @@
         els.endpoint.textContent = displayEndpoint(configuredEndpoint);
         hideHostModal();
       } else {
-        runtimeEndpoint = decodeURIComponent(readCookie(runtimeEndpointCookie));
+        runtimeEndpoint = readRuntimeEndpoint();
         if (runtimeEndpoint) {
           els.runtimeEndpoint.value = runtimeEndpoint;
           els.endpoint.textContent = displayEndpoint(runtimeEndpoint);
           hideHostModal();
         } else {
-          els.endpoint.textContent = 'runtime endpoint required';
+          els.endpoint.textContent = 'testing endpoint required';
           showHostModal();
         }
       }
