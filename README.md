@@ -4,6 +4,10 @@ Extremely lightweight Go web chat UI for OpenAI-compatible chat APIs, intended t
 
 TinyChat was inspired by the built-in web UI from [`llama.cpp`](https://github.com/ggml-org/llama.cpp).
 
+## Screenshot
+
+![TinyChat screenshot](screen.png)
+
 If `OPENAI_CHAT_HOST` is not provided, the UI asks for an OpenAI-compatible API host at startup. HTTP and HTTPS endpoints are supported. Temporary browser-provided endpoints are remembered in a cookie for one hour; set the environment variable for repeatable deployments.
 
 It proxies:

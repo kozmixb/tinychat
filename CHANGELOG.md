@@ -23,4 +23,6 @@
 - Updated the model label to show context size and collapse file-path model IDs to filenames.
 - Added auto-growing prompt input capped at half the viewport height.
 - Centered the welcome state and composer on the empty start screen, then animated the composer to the bottom after the first prompt.
+- Refreshed the UI theme with a modern dark teal palette, warmer accents, and clearer focus states.
+- Added the UI screenshot to the README.
 - Improved composer and message UI, including bottom alignment, message copy actions, model label with token context, and scroll behavior for long histories.
