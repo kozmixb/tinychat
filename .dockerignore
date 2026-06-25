@@ -1,0 +1,10 @@
+.git
+.agents
+.codex
+bin
+dist
+tmp
+.gocache
+.gomodcache
+.gotelemetry
+*.exe
