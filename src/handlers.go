@@ -1,78 +1,18 @@
-type appConfig struct {
-	Addr          string `json:"-"`
-	OpenAIChatURL string `json:"openai_chat_host"`
-}
+package main
 
-func main() {
-	cfg, err := loadConfig()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", serveIndex)
-	mux.HandleFunc("/api/config", handleConfig(cfg))
-	mux.HandleFunc("/api/health", proxyRequest(cfg, http.MethodGet, "/health"))
-	mux.HandleFunc("/api/models", proxyRequest(cfg, http.MethodGet, "/models"))
-	mux.HandleFunc("/api/chat", proxyRequest(cfg, http.MethodPost, "/chat/completions"))
-
-	server := &http.Server{
-		Addr:              cfg.Addr,
-		Handler:           logRequests(mux),
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	log.Printf("listening on http://%s", cfg.Addr)
-	log.Printf("proxying OpenAI-compatible chat API at %s", cfg.OpenAIChatURL)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
-	}
-}
-
-func loadConfig() (appConfig, error) {
-	host := env("APP_HOST", "127.0.0.1")
-	port := env("APP_PORT", "8080")
-	openAIHost := strings.TrimSpace(os.Getenv("OPENAI_CHAT_HOST"))
-
-	if openAIHost != "" {
-		openAIHost = normalizeOpenAIBaseURL(openAIHost)
-		if _, err := url.ParseRequestURI(openAIHost); err != nil {
-			return appConfig{}, fmt.Errorf("invalid OPENAI_CHAT_HOST: %w", err)
-		}
-	}
-
-	return appConfig{
-		Addr:          net.JoinHostPort(host, port),
-		OpenAIChatURL: strings.TrimRight(openAIHost, "/"),
-	}, nil
-}
-
-func env(key, fallback string) string {
-	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func normalizeBaseURL(raw string) string {
-	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
-		return raw
-	}
-	return "http://" + raw
-}
-
-func normalizeOpenAIBaseURL(raw string) string {
-	baseURL := strings.TrimRight(normalizeBaseURL(strings.TrimSpace(raw)), "/")
-	parsed, err := url.Parse(baseURL)
-	if err != nil {
-		return baseURL
-	}
-	if parsed.Path == "" || parsed.Path == "/" {
-		parsed.Path = "/v1"
-		return strings.TrimRight(parsed.String(), "/")
-	}
-	return baseURL
-}
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+)
 
 func serveIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
