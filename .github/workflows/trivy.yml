@@ -27,6 +27,7 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
           exit-code: "1"
+          limit-severities-for-sarif: true
 
       - name: Upload Trivy results
         if: always()
