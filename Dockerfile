@@ -7,9 +7,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -trimpath -ldflags="-s -w"
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
+RUN addgroup -S tinychat && adduser -S -G tinychat tinychat
 COPY --from=build /out/tinychat /tinychat
-ENV APP_HOST=0.0.0.0
-ENV APP_PORT=8080
-ENV OPENAI_CHAT_HOST=
 EXPOSE 8080
+USER tinychat
 ENTRYPOINT ["/tinychat"]

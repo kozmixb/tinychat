@@ -23,7 +23,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           logRequests(mux),
+		Handler:           securityHeaders(logRequests(mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

@@ -147,13 +147,30 @@ func readBody(r *http.Request) ([]byte, error) {
 
 func copyHeader(dst, src http.Header) {
 	for key, values := range src {
-		lower := strings.ToLower(key)
-		if lower == "content-length" || lower == "connection" {
+		if shouldSkipProxyHeader(key) {
 			continue
 		}
 		for _, value := range values {
 			dst.Add(key, value)
 		}
+	}
+}
+
+func shouldSkipProxyHeader(key string) bool {
+	switch strings.ToLower(key) {
+	case "connection",
+		"content-length",
+		"keep-alive",
+		"proxy-authenticate",
+		"proxy-authorization",
+		"set-cookie",
+		"te",
+		"trailer",
+		"transfer-encoding",
+		"upgrade":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -167,6 +184,17 @@ func writeJSON(w http.ResponseWriter, v any) {
 func logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		next.ServeHTTP(w, r)
 	})
 }
